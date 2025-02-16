@@ -6,7 +6,29 @@ import {
     type State,
     elizaLogger,
 } from "@elizaos/core";
+import { encodingForModel, type TiktokenModel } from "js-tiktoken";
 import { YouTubeTranscriptionService } from "../services/youtubeTranscriptionService";
+
+const DEFAULT_MAX_TRANSCRIPTION_TOKENS = 300; // Limit the transcription preview to 300 tokens
+const DEFAULT_MODEL_ENCODING = "gpt-3.5-turbo";
+
+function getTotalTokensFromString(
+    str: string,
+    encodingName: TiktokenModel = DEFAULT_MODEL_ENCODING
+) {
+    const encoding = encodingForModel(encodingName);
+    return encoding.encode(str).length;
+}
+
+function limitTranscription(
+    data: string,
+    maxTokens: number = DEFAULT_MAX_TRANSCRIPTION_TOKENS
+): string {
+    if (getTotalTokensFromString(data) > maxTokens) {
+        return data.slice(0, maxTokens) + "...";
+    }
+    return data;
+}
 
 export const youtubeTranscription: Action = {
     name: "YOUTUBE_TRANSCRIPTION",
@@ -44,12 +66,11 @@ export const youtubeTranscription: Action = {
                 videoUrl
             );
 
-            // Limit the transcription to the first 300 characters for the client
-            const previewLength = 300;
-            const preview =
-                transcription.length > previewLength
-                    ? transcription.slice(0, previewLength) + "..."
-                    : transcription;
+            // Limit the transcription to a tokenized preview
+            const preview = limitTranscription(
+                transcription,
+                DEFAULT_MAX_TRANSCRIPTION_TOKENS
+            );
 
             callback({
                 text: `Here's a preview of the transcription:\n\n${preview}\n\nYou can request the full transcription if needed.`,
